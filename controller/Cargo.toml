@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name    = "controller"
+name = "controller"
 version = "0.1.0"
 
 [[bin]]
@@ -13,10 +13,17 @@ embassy-net = { version = "0.6.0", features = [
   "medium-ethernet",
   "tcp",
   "udp",
+  "dns",
 ] }
 embedded-io = "0.6.1"
 embedded-io-async = "0.6.1"
 esp-alloc = "0.7.0"
+esp-backtrace = { version = "0.15.1", features = [
+  "esp32c6",
+  "exception-handler",
+  "panic-handler",
+  "println",
+] }
 esp-hal = { version = "1.0.0-beta.0", features = ["esp32c6", "unstable"] }
 esp-println = { version = "0.13.0", features = ["esp32c6", "log"] }
 log = { version = "0.4.21" }
@@ -46,6 +53,8 @@ esp-wifi = { version = "0.13.0", features = [
 ] }
 heapless = { version = "0.8.0", default-features = false }
 static_cell = { version = "2.1.0", features = ["nightly"] }
+embedded-websocket = { version = "0.9.4", default-features = false }
+embedded-svc = { version = "0.28.1", default-features = false, features = [] }
 
 [profile.dev]
 # Rust debug is too slow.
@@ -53,10 +62,13 @@ static_cell = { version = "2.1.0", features = ["nightly"] }
 opt-level = "s"
 
 [profile.release]
-codegen-units    = 1     # LLVM can perform better optimizations using a single thread
-debug            = 2
+codegen-units = 1        # LLVM can perform better optimizations using a single thread
+debug = 2
 debug-assertions = false
-incremental      = false
-lto              = 'fat'
-opt-level        = 's'
-overflow-checks  = false
+incremental = false
+lto = 'fat'
+opt-level = 's'
+overflow-checks = false
+
+[build-dependencies]
+dotenv = "0.15"

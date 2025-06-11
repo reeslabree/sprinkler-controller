@@ -17,6 +17,7 @@ async fn main() {
     while let Ok((stream, _)) = listener.accept().await {
         let clients = clients.clone();
         tokio::spawn(async move {
+            println!("Someone connected");
             let ws_stream = match accept_async(stream).await {
                 Ok(ws) => ws,
                 Err(_) => return,

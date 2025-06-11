@@ -1,7 +1,50 @@
 fn main() {
+    load_env_vars();
     linker_be_nice();
     // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)
     println!("cargo:rustc-link-arg=-Tlinkall.x");
+}
+
+fn load_env_vars() {
+    use std::fs;
+    use std::path::Path;
+
+    let env_file = Path::new(".env");
+
+    if env_file.exists() {
+        println!("cargo:rerun-if-changed=.env");
+
+        // Read the .env file content
+        if let Ok(content) = fs::read_to_string(env_file) {
+            // Parse each line in the .env file
+            for line in content.lines() {
+                let line = line.trim();
+
+                // Skip empty lines and comments
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+
+                // Parse KEY=VALUE format
+                if let Some((key, value)) = line.split_once('=') {
+                    let key = key.trim();
+                    let value = value.trim();
+
+                    // Remove quotes if present
+                    let value = if (value.starts_with('"') && value.ends_with('"'))
+                        || (value.starts_with('\'') && value.ends_with('\''))
+                    {
+                        &value[1..value.len() - 1]
+                    } else {
+                        value
+                    };
+
+                    // Make the environment variable available to the code
+                    println!("cargo:rustc-env={}={}", key, value);
+                }
+            }
+        }
+    }
 }
 
 fn linker_be_nice() {

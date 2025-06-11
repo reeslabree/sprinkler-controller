@@ -1,5 +1,14 @@
+# env
+**/*.env
+
 # certificates
 **/*.pem
+
+# controller files
+controller/debug/
+controller/target/
+controller/**/*.rs.bk
+contorller/*.pdb
 
 # rust workspace
 target
