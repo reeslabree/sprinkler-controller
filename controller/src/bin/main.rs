@@ -1,24 +1,24 @@
 #![no_std]
 #![no_main]
 
-use base64ct::{Base64, Encoding};
-use controller::websocket::bytes_to_websocket_frame;
-use core::fmt::Write;
-use core::{net::Ipv4Addr, str::FromStr};
+use core::net::Ipv4Addr;
+use core::str::FromStr;
+
+// WebSocket functionality is now handled by the websocket module
+use controller::embassy_websocket::EmbassyWebSocket;
 use embassy_executor::Spawner;
-use embassy_net::tcp::TcpSocket;
 use embassy_net::{Runner, Stack, StackResources};
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
+use esp_hal::clock::CpuClock;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
-use esp_hal::{clock::CpuClock, rng::Rng};
 use esp_wifi::{
     wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState},
     EspWifiController,
 };
 use heapless::String;
-use log::{error, info, warn};
+use log::{info, warn};
 
 macro_rules! mk_static {
     ($t:ty,$val:expr) => {{
@@ -30,8 +30,6 @@ macro_rules! mk_static {
 }
 
 const BUFFER_SIZE: usize = 4000;
-const REQUEST_BUFFER_SIZE: usize = 256;
-const SOCKET_TIMEOUT_SECONDS: u64 = 20;
 
 const WIFI_SSID: &str = env!("WIFI_SSID");
 const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
@@ -87,13 +85,34 @@ async fn main(spawner: Spawner) {
         seed,
     );
 
-    spawner.spawn(connection(controller, stack, rng)).ok();
+    // Init websocket
+    let mut path = String::new();
+    let _ = path.push_str(WEBSOCKET_PATH);
+    let websocket = mk_static!(
+        EmbassyWebSocket<'static>,
+        EmbassyWebSocket::new(
+            Ipv4Addr::from_str(WEBSOCKET_IP).unwrap(),
+            WEBSOCKET_PORT.parse::<u16>().unwrap(),
+            path,
+            rng,
+        )
+        .unwrap()
+    );
 
+    // Spawn task
+    let controller = mk_static!(WifiController<'static>, controller);
+    let stack = mk_static!(Stack<'static>, stack);
+
+    spawner.spawn(connection(controller, stack, websocket)).ok();
     spawner.spawn(net_task(runner)).ok();
 }
 
 #[embassy_executor::task]
-async fn connection(mut controller: WifiController<'static>, stack: Stack<'static>, mut rng: Rng) {
+async fn connection(
+    controller: &'static mut WifiController<'static>,
+    stack: &'static Stack<'static>,
+    websocket: &'static EmbassyWebSocket<'static>,
+) {
     loop {
         match esp_wifi::wifi::wifi_state() {
             WifiState::StaConnected => {
@@ -138,7 +157,6 @@ async fn connection(mut controller: WifiController<'static>, stack: Stack<'stati
         }
 
         if aps.iter().any(|ap| ap.ssid.as_str() == WIFI_SSID) {
-            info!("Found target WiFi network: {}", WIFI_SSID);
             if let Some(target_ap) = aps.iter().find(|ap| ap.ssid.as_str() == WIFI_SSID) {
                 info!(
                     "Target network - Channel: {}, Signal: {}, Auth: {:?}",
@@ -179,147 +197,27 @@ async fn connection(mut controller: WifiController<'static>, stack: Stack<'stati
                     info!("IP: {}", config.address);
                     info!("Gateway: {:?}", config.gateway.unwrap());
                     info!("DNS: {}", config.dns_servers[0]);
+
+                    let rx_buffer = mk_static!([u8; BUFFER_SIZE], [0; BUFFER_SIZE]);
+                    let tx_buffer = mk_static!([u8; BUFFER_SIZE], [0; BUFFER_SIZE]);
+
+                    info!("Connecting to websocket");
+                    match websocket.connect(&stack, rx_buffer, tx_buffer).await {
+                        Ok(()) => {
+                            info!("Connected to websocket");
+                            let mut connection_text = String::<10>::new();
+                            let _ = connection_text.push_str("controller");
+                            websocket.write_text(connection_text).await.unwrap();
+                        }
+                        Err(e) => {
+                            warn!("failed to connect to websocket: {e:?}");
+                            Timer::after(Duration::from_millis(5000)).await;
+                        }
+                    }
                 } else {
                     warn!("DHCP timed out");
                     controller.disconnect().unwrap();
                     continue;
-                }
-
-                let mut rx_buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
-                let mut tx_buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
-                let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-
-                let ip = Ipv4Addr::from_str(WEBSOCKET_IP).unwrap();
-                let port = WEBSOCKET_PORT.parse().unwrap();
-
-                info!("Socket connecting to {}:{}", ip, port);
-
-                let connect_start_time = Instant::now();
-                let connect_res = socket.connect((ip, port)).await;
-                if connect_res.is_err() {
-                    error!(
-                        "Unable to connect to {}:{} - {:?}",
-                        ip,
-                        port,
-                        connect_res.err()
-                    );
-                    return;
-                }
-                info!("Connected to websocket successfully");
-                let connect_duration = connect_start_time.elapsed();
-                info!("Connection time: {:?}ms", connect_duration.as_millis());
-
-                // compute websocket secret
-                let mut random_buffer: [u8; 16] = [0; 16];
-                rng.read(&mut random_buffer);
-
-                let mut encode_buffer: [u8; 24] = [0; 24];
-                let random_str = match Base64::encode(&random_buffer, &mut encode_buffer) {
-                    Ok(t) => t,
-                    Err(_) => {
-                        error!("Failed encoding base64 websocket-key");
-                        return;
-                    }
-                };
-                info!("Base64 encoded websocket-key: {}", random_str);
-
-                // build initial upgrade request
-                let mut upgrade_request: String<REQUEST_BUFFER_SIZE> = String::new();
-
-                match write!(
-                    &mut upgrade_request,
-                    "GET {} HTTP/1.1\r\nHost: {}:{}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {}\r\nSec-WebSocket-Version: 13\r\n\r\n",
-                    WEBSOCKET_PATH,
-                    ip,
-                    port,
-                    random_str,
-                ) {
-                    Ok(_) => (),
-                    Err(e) => {
-                        error!("Failed to write upgrade request: {:?}", e);
-                        return;
-                    }
-                };
-
-                info!("Upgrade request: {}", upgrade_request);
-
-                match socket.write(upgrade_request.as_bytes()).await {
-                    Ok(len) => {
-                        info!("Upgrade request sent: {} bytes", len);
-                    }
-                    Err(e) => {
-                        error!("Failed upgrade request: {:?}", e);
-                        return;
-                    }
-                };
-
-                // Flush the socket to ensure all data is sent
-                if let Err(e) = socket.flush().await {
-                    error!("Failed to flush socket: {:?}", e);
-                    return;
-                }
-                info!("Socket flushed, waiting for response...");
-
-                let deadline = Instant::now() + Duration::from_secs(SOCKET_TIMEOUT_SECONDS);
-                let mut buffer = [0u8; 512];
-                let mut total_bytes = 0;
-
-                while Instant::now() < deadline {
-                    match socket.read(&mut buffer).await {
-                        Ok(len) => {
-                            if len > 0 {
-                                total_bytes += len;
-                                let to_print =
-                                    unsafe { core::str::from_utf8_unchecked(&buffer[..len]) };
-                                info!("Received {} bytes:\n{}", len, to_print);
-
-                                if to_print.contains("Sec-WebSocket-Accept")
-                                    || to_print.contains("sec-websocket-accept")
-                                {
-                                    let mut masking_key = [0; 4];
-                                    rng.read(&mut masking_key);
-                                    let frame = match bytes_to_websocket_frame(
-                                        b"controller",
-                                        masking_key,
-                                    ) {
-                                        Ok(frame) => frame,
-                                        Err(e) => {
-                                            error!(
-                                                "Failed to convert bytes to websocket frame: {:?}",
-                                                e
-                                            );
-                                            return;
-                                        }
-                                    };
-                                    info!("Sending controller message");
-                                    match socket.write(&frame).await {
-                                        Ok(_) => {
-                                            socket.flush().await.unwrap();
-                                            info!("Sent controller message");
-                                        }
-                                        Err(e) => {
-                                            error!("Failed to write to socket: {:?}", e);
-                                            return;
-                                        }
-                                    };
-                                    break;
-                                }
-                            } else {
-                                info!("Socket returned 0 bytes, connection might be closed");
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            error!("Error reading from socket: {:?}", e);
-                            break;
-                        }
-                    }
-                }
-
-                if total_bytes == 0 {
-                    error!("No response received from server within timeout");
-                } else {
-                    info!("Total bytes received: {}", total_bytes);
                 }
             }
             Err(e) => {
