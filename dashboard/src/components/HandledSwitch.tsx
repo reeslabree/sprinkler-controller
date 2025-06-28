@@ -14,7 +14,7 @@ export const HandledSwitch = ({ isOn, onToggle }: Props) => {
       {/* Background Pipe */}
       <div
         className="absolute top-1/2 left-1/2 w-32 h-10 -translate-x-1/2 -translate-y-1/2
-                   bg-gradient-to-r from-background via-slate-400 to-background
+                   bg-gradient-to-r from-background via-zinc-400 to-background
                    border-t-2 border-b-2 border-black -z-10"
       />
 
@@ -22,12 +22,12 @@ export const HandledSwitch = ({ isOn, onToggle }: Props) => {
       <div
         className={`
           w-full h-full rounded-full border-2 border-black transition-all duration-300 ease-in-out
-          ${isOn ? "bg-primary" : "bg-slate-300"}
+          ${isOn ? "bg-primary" : "bg-zinc-300"}
         `}
       />
 
       {/* Inner Circle (creates the ring effect) */}
-      <div className="absolute top-1/2 left-1/2 w-10 h-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-slate-300" />
+      <div className="absolute top-1/2 left-1/2 w-10 h-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-zinc-300" />
 
       {/* Handle */}
       <div
@@ -35,7 +35,7 @@ export const HandledSwitch = ({ isOn, onToggle }: Props) => {
           absolute -top-14 left-1/2 w-5 h-16 -translate-x-1/2 
           transition-all duration-300 ease-in-out
           rounded-sm border-2 border-black
-          ${isOn ? "bg-primary rotate-90" : "bg-slate-300 rotate-0"}
+          ${isOn ? "bg-primary rotate-90" : "bg-zinc-300 rotate-0"}
         `}
         style={{ transformOrigin: "50% calc(100% + 28px)" }}
       />
