@@ -34,6 +34,9 @@ pub async fn handle_user_message(clients: &ClientMap, msg: UserMessage) {
             )
             .await;
         }
+        UserMessage::ToggleZone(payload) => {
+            println!("ToggleZone: {payload:?}");
+        }
     }
 }
 

@@ -4,7 +4,6 @@
 use core::net::Ipv4Addr;
 use core::str::FromStr;
 
-// WebSocket functionality is now handled by the websocket module
 use controller::embassy_websocket::EmbassyWebSocket;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};

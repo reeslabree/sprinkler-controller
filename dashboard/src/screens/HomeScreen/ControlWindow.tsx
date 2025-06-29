@@ -1,5 +1,6 @@
-import { HandledSwitch } from "@/components/HandledSwitch";
-import { useState } from "react";
+import { HandledSwitch } from "@/components";
+import { useWebSocket } from "@/contexts";
+import { useEffect, useState } from "react";
 
 interface ControlItemProps {
   title: string;
@@ -15,6 +16,12 @@ const ControlItem = ({ title, isOn, onToggle }: ControlItemProps) => (
 );
 
 export const ControlWindow = () => {
+  const { sendMessage, isConnected } = useWebSocket();
+
+  useEffect(() => {
+    console.log(isConnected);
+  }, [isConnected]);
+
   const [isZone1On, setIsZone1On] = useState(false);
   const [isZone2On, setIsZone2On] = useState(false);
   const [isZone3On, setIsZone3On] = useState(false);
@@ -23,26 +30,41 @@ export const ControlWindow = () => {
   const [isZone6On, setIsZone6On] = useState(false);
 
   const handleToggleZone = (zone: number) => {
+    let isOn = false;
+
     switch (zone) {
       case 1:
-        setIsZone1On(!isZone1On);
+        isOn = !isZone1On;
+        setIsZone1On(isOn);
         break;
       case 2:
-        setIsZone2On(!isZone2On);
+        isOn = !isZone2On;
+        setIsZone2On(isOn);
         break;
       case 3:
-        setIsZone3On(!isZone3On);
+        isOn = !isZone3On;
+        setIsZone3On(isOn);
         break;
       case 4:
-        setIsZone4On(!isZone4On);
+        isOn = !isZone4On;
+        setIsZone4On(isOn);
         break;
       case 5:
-        setIsZone5On(!isZone5On);
+        isOn = !isZone5On;
+        setIsZone5On(isOn);
         break;
       case 6:
-        setIsZone6On(!isZone6On);
+        isOn = !isZone6On;
+        setIsZone6On(isOn);
         break;
     }
+
+    sendMessage(
+      JSON.stringify({
+        type: "toggleZone",
+        payload: { zone, activate: isOn },
+      })
+    );
   };
 
   return (

@@ -58,7 +58,7 @@ pub enum SetScheduleResponseStatus {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct SetSchedlueResponse {
+pub struct SetScheduleResponse {
     pub status: SetScheduleResponseStatus,
     pub message: String,
 }
@@ -70,11 +70,20 @@ pub struct IsControllerConnectedResponse {
     pub is_connected: bool,
 }
 
+// ToggleZone
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ToggleZonePayload {
+    pub zone: u16,
+    pub activate: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum UserMessage {
     SetSchedule(SetSchedulePayload),
     IsControllerConnected,
+    ToggleZone(ToggleZonePayload),
 }
 
 // Controller Events
@@ -95,7 +104,7 @@ pub struct ControllerEvent {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum ControllerMessage {
-    SetScheduleResponse(SetSchedlueResponse),
+    SetScheduleResponse(SetScheduleResponse),
     ControllerEvent(ControllerEvent),
 }
 
