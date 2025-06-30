@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   isOn: boolean;
   onToggle: (isOn: boolean) => void;
+  isDisabled?: boolean;
 }
 
-export const HandledSwitch = ({ isOn, onToggle }: Props) => {
+export const HandledSwitch = ({ isOn, onToggle, isDisabled }: Props) => {
   return (
     <div
-      className="relative w-18 h-18 cursor-pointer"
-      onClick={() => onToggle(!isOn)}
+      className={cn(
+        "relative w-18 h-18 cursor-pointer",
+        isDisabled && "cursor-not-allowed"
+      )}
+      onClick={() => !isDisabled && onToggle(!isOn)}
     >
       {/* Background Pipe */}
       <div

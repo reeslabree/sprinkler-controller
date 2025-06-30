@@ -1,4 +1,10 @@
 import {
+  ClientMessage,
+  ClientMessageResponse,
+  StatusPayload,
+  StatusResponse,
+} from "@/types";
+import {
   createContext,
   useContext,
   useEffect,
@@ -8,8 +14,11 @@ import {
 
 interface WebSocketContextType {
   ws: WebSocket | null;
-  isConnected: boolean;
-  sendMessage: (message: string) => void;
+  isClientConnected: boolean;
+  isControllerConnected: boolean;
+  sendMessage: <T extends ClientMessage, R extends ClientMessageResponse>(
+    message: T
+  ) => Promise<R>;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(
@@ -20,9 +29,31 @@ interface WebSocketProviderProps {
   children: ReactNode;
 }
 
+const sendMessageGeneric = async <
+  T extends ClientMessage,
+  R extends ClientMessageResponse
+>(
+  ws: WebSocket,
+  message: T
+): Promise<R> => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message));
+
+    return new Promise((resolve, reject) => {
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        resolve(data);
+      };
+    });
+  } else {
+    throw new Error("WebSocket is not connected");
+  }
+};
+
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isClientConnected, setIsClientConnected] = useState(false);
+  const [isControllerConnected, setIsControllerConnected] = useState(false);
 
   const PORT = process.env.NEXT_PUBLIC_WEBSOCKET_PORT;
   const IP = process.env.NEXT_PUBLIC_WEBSOCKET_IP;
@@ -33,18 +64,29 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
     websocket.onopen = () => {
       console.log("connected to server");
-      setIsConnected(true);
+      setIsClientConnected(true);
       websocket.send("user");
+      sendMessageGeneric<StatusPayload, StatusResponse>(websocket, {
+        type: "status",
+        payload: {},
+      }).then((data) => {
+        console.log(data);
+        setIsControllerConnected(data.payload.isControllerConnected);
+      });
     };
 
     websocket.onclose = () => {
       console.log("disconnected from server");
-      setIsConnected(false);
+      setIsClientConnected(false);
     };
 
     websocket.onerror = (error) => {
       console.error("WebSocket error:", error);
-      setIsConnected(false);
+      setIsClientConnected(false);
+    };
+
+    websocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
     };
 
     setWs(websocket);
@@ -54,16 +96,36 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     };
   }, [IP, PORT, PATH]);
 
-  const sendMessage = (message: string) => {
-    if (ws && isConnected) {
-      ws.send(message);
+  const sendMessage = <
+    T extends ClientMessage,
+    R extends ClientMessageResponse
+  >(
+    message: T
+  ): Promise<R> => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+
+      return new Promise((resolve, reject) => {
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          console.log(data);
+          resolve(data);
+        };
+      });
     } else {
-      console.warn("WebSocket is not connected");
+      throw new Error("WebSocket is not connected");
     }
   };
 
   return (
-    <WebSocketContext.Provider value={{ ws, isConnected, sendMessage }}>
+    <WebSocketContext.Provider
+      value={{
+        ws,
+        isClientConnected,
+        isControllerConnected,
+        sendMessage,
+      }}
+    >
       {children}
     </WebSocketContext.Provider>
   );

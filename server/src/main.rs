@@ -1,9 +1,10 @@
 mod message;
 mod types;
 
+use crate::message::controller::ControllerMessage;
+use crate::message::user::UserMessage;
 use crate::message::{handle_user_message, send_to_client};
 use crate::types::{ClientMap, ClientType};
-use crate::types::{ControllerMessage, UserMessage};
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::unbounded_channel;
