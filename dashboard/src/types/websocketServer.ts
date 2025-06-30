@@ -3,6 +3,18 @@ interface BaseMessage {
   payload: Record<string, unknown>;
 }
 
+// Keep Alive
+export interface KeepAlivePayload extends BaseMessage {
+  type: "keepAlive";
+  payload: {};
+}
+
+export interface KeepAliveResponse extends BaseMessage {
+  type: "keepAliveResponse";
+  payload: {};
+}
+
+// Toggle Zone
 export interface ToggleZonePayload extends BaseMessage {
   type: "toggleZone";
   payload: {
@@ -19,6 +31,7 @@ export interface ToggleZoneResponse extends BaseMessage {
   };
 }
 
+// Status
 export interface StatusPayload extends BaseMessage {
   type: "status";
   payload: {};
@@ -31,6 +44,12 @@ export interface StatusResponse extends BaseMessage {
   };
 }
 
-export type ClientMessage = ToggleZonePayload | StatusPayload | StatusResponse;
+export type ClientMessage =
+  | KeepAlivePayload
+  | ToggleZonePayload
+  | StatusPayload;
 
-export type ClientMessageResponse = ToggleZoneResponse | StatusResponse;
+export type ClientMessageResponse =
+  | KeepAliveResponse
+  | ToggleZoneResponse
+  | StatusResponse;

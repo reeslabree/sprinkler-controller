@@ -47,6 +47,11 @@ impl<'a> EmbassyWebSocket<'a> {
         })
     }
 
+    pub async fn is_connected(&self) -> bool {
+        let inner = self.inner.lock().await;
+        inner.is_connected
+    }
+
     pub async fn connect<'b>(
         &self,
         stack: &'b Stack<'b>,

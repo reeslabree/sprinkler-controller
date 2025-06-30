@@ -6,6 +6,7 @@ use core::str::FromStr;
 
 use controller::embassy_websocket::EmbassyWebSocket;
 use embassy_executor::Spawner;
+use embassy_futures::join::join;
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
@@ -28,7 +29,17 @@ macro_rules! mk_static {
     }};
 }
 
-const BUFFER_SIZE: usize = 4000;
+macro_rules! join_many {
+    ($first:expr, $second:expr) => {
+        join($first, $second)
+    };
+    ($first:expr, $second:expr, $($rest:expr),*) => {
+        join($first, join_many!($second, $($rest),*))
+    };
+}
+
+const BUFFER_SIZE: usize = 4_000;
+const KEEP_ALIVE_DURATION_MS: u64 = 10_000;
 
 const WIFI_SSID: &str = env!("WIFI_SSID");
 const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
@@ -37,11 +48,8 @@ const WEBSOCKET_PORT: &str = env!("WEBSOCKET_PORT");
 const WEBSOCKET_PATH: &str = env!("WEBSOCKET_PATH");
 
 #[esp_hal_embassy::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
-
-    info!("SSID: {}", WIFI_SSID);
-    info!("Password: {}", WIFI_PASSWORD);
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -66,7 +74,7 @@ async fn main(spawner: Spawner) {
 
     let wifi_interface = interfaces.sta;
 
-    info!("MAC: {:?}", wifi_interface.mac_address());
+    info!("MAC: {:02X?}", wifi_interface.mac_address());
 
     controller
         .set_power_saving(esp_wifi::config::PowerSaveMode::None)
@@ -102,11 +110,39 @@ async fn main(spawner: Spawner) {
     let controller = mk_static!(WifiController<'static>, controller);
     let stack = mk_static!(Stack<'static>, stack);
 
-    spawner.spawn(connection(controller, stack, websocket)).ok();
-    spawner.spawn(net_task(runner)).ok();
+    let connection_future = connection(controller, stack, websocket);
+    let keep_alive_future = keep_alive(websocket);
+    let net_task_future = net_task(runner);
+
+    // spawner.spawn(connection(controller, stack, websocket)).ok();
+    // spawner.spawn(net_task(runner)).ok();
+
+    // join(connection, net_task).await;
+
+    join_many!(connection_future, keep_alive_future, net_task_future).await;
 }
 
-#[embassy_executor::task]
+// #[embassy_executor::task]
+async fn keep_alive(websocket: &'static EmbassyWebSocket<'static>) {
+    loop {
+        Timer::after(Duration::from_millis(KEEP_ALIVE_DURATION_MS)).await;
+
+        if !websocket.is_connected().await {
+            info!("Websocket not connected");
+            Timer::after(Duration::from_millis(KEEP_ALIVE_DURATION_MS)).await;
+            continue;
+        }
+
+        let mut keep_alive_packet = String::<33>::new();
+        let _ = keep_alive_packet.push_str("{\"type\":\"keepAlive\",\"payload\":{}}");
+
+        info!("Sending keep alive packet");
+
+        websocket.write_text(keep_alive_packet).await.unwrap();
+    }
+}
+
+// #[embassy_executor::task]
 async fn connection(
     controller: &'static mut WifiController<'static>,
     stack: &'static Stack<'static>,
@@ -227,7 +263,7 @@ async fn connection(
     }
 }
 
-#[embassy_executor::task]
+// #[embassy_executor::task]
 async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }

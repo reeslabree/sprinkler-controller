@@ -5,8 +5,12 @@ pub mod user;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::{
-    message::user::{
-        UserMessage, UserMessageResponse, status::StatusResponse, toggle_zone::ToggleZoneResponse,
+    message::{
+        controller::ControllerMessage,
+        user::{
+            UserMessage, UserMessageResponse, status::StatusResponse,
+            toggle_zone::ToggleZoneResponse,
+        },
     },
     types::{ClientMap, ClientType},
 };
@@ -56,5 +60,14 @@ pub async fn handle_user_message(clients: &ClientMap, msg: UserMessage) {
             )
             .await;
         }
+        UserMessage::KeepAlive(payload) => {
+            println!("KeepAlive: {payload:?}");
+        }
+    }
+}
+
+pub async fn handle_controller_message(clients: &ClientMap, msg: ControllerMessage) {
+    match msg {
+        _ => (),
     }
 }
