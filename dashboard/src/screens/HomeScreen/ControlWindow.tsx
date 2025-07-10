@@ -72,7 +72,7 @@ export const ControlWindow = () => {
         break;
     }
 
-    sendMessage<ToggleZonePayload, ToggleZoneResponse>({
+    sendMessage<ToggleZonePayload>({
       type: "toggleZone",
       payload: { zone, activate: isOn },
     });

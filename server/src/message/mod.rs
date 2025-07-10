@@ -7,12 +7,13 @@ use tokio_tungstenite::tungstenite::Message;
 use crate::{
     message::{
         controller::ControllerMessage,
+        server::ServerResponse,
         user::{
             UserMessage, UserMessageResponse, status::StatusResponse,
             toggle_zone::ToggleZoneResponse,
         },
     },
-    types::{ClientMap, ClientType},
+    types::{ClientMap, ClientType, ControllerTimestamp},
 };
 
 pub async fn send_to_client(clients: &ClientMap, client_type: &ClientType, message: &str) -> bool {
@@ -24,7 +25,11 @@ pub async fn send_to_client(clients: &ClientMap, client_type: &ClientType, messa
     }
 }
 
-pub async fn handle_user_message(clients: &ClientMap, msg: UserMessage) {
+pub async fn handle_user_message(
+    clients: &ClientMap,
+    controller_timestamp: &ControllerTimestamp,
+    msg: UserMessage,
+) {
     match msg {
         UserMessage::ToggleZone(payload) => {
             println!("ToggleZone: {payload:?}");
@@ -47,8 +52,14 @@ pub async fn handle_user_message(clients: &ClientMap, msg: UserMessage) {
         UserMessage::Status(payload) => {
             println!("Status: {payload:?}");
 
-            let is_controller_connected =
-                clients.lock().await.get(&ClientType::Controller).is_some();
+            let is_controller_connected = {
+                let timestamp_guard = controller_timestamp.lock().await;
+                if let Some(last_message) = *timestamp_guard {
+                    last_message.elapsed() < std::time::Duration::from_secs(15)
+                } else {
+                    false
+                }
+            };
 
             send_to_client(
                 clients,
@@ -70,4 +81,12 @@ pub async fn handle_controller_message(clients: &ClientMap, msg: ControllerMessa
     match msg {
         _ => (),
     }
+}
+
+pub async fn handle_server_message(
+    clients: &ClientMap,
+    recipient: ClientType,
+    msg: ServerResponse,
+) {
+    send_to_client(clients, &recipient, &serde_json::to_string(&msg).unwrap()).await;
 }

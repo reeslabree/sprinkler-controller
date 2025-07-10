@@ -1,14 +1,10 @@
-use serde::{Deserialize, Serialize};
+pub mod controller_heartbeat;
 
-// IsControllerConnected
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub(super) struct IsControllerConnectedResponse {
-    pub is_connected: bool,
-}
+use crate::message::server::controller_heartbeat::ControllerHeartbeatPayload;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
-pub(super) enum ServerResponse {
-    IsControllerConnected(IsControllerConnectedResponse),
+pub enum ServerResponse {
+    ControllerHeartbeat(ControllerHeartbeatPayload),
 }
