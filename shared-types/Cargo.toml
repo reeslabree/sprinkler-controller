@@ -1,0 +1,10 @@
+[package]
+name = "shared-types"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.131", default-features = false, features = [
+  "alloc",
+] }

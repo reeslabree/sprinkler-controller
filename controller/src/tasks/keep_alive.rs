@@ -1,13 +1,13 @@
 use crate::embassy_websocket::EmbassyWebSocket;
 
-use embassy_executor::task;
 use embassy_time::{Duration, Timer};
 use heapless::String;
-use log::info;
+use log::{info, warn};
+use shared::{ControllerMessage, KeepAlivePayload};
 
-const KEEP_ALIVE_DURATION_MS: u64 = 10_000;
+const KEEP_ALIVE_DURATION_MS: u64 = 2_500;
 
-#[task]
+#[embassy_executor::task]
 pub async fn keep_alive(websocket: &'static EmbassyWebSocket<'static>) {
     loop {
         Timer::after(Duration::from_millis(KEEP_ALIVE_DURATION_MS)).await;
@@ -19,10 +19,20 @@ pub async fn keep_alive(websocket: &'static EmbassyWebSocket<'static>) {
         }
 
         let mut keep_alive_packet = String::<33>::new();
-        let _ = keep_alive_packet.push_str("{\"type\":\"keepAlive\",\"payload\":{}}");
+        let payload = ControllerMessage::KeepAlive(KeepAlivePayload {});
 
-        info!("Sending keep alive packet");
+        let _ = keep_alive_packet.push_str(serde_json::to_string(&payload).unwrap().as_str());
 
-        websocket.write_text(keep_alive_packet).await.unwrap();
+        info!("Sending keep alive packet: {:?}", keep_alive_packet);
+
+        match websocket.write_text(keep_alive_packet).await {
+            Ok(()) => {
+                // Successfully sent keep alive
+            }
+            Err(e) => {
+                warn!("Failed to send keep alive packet: {:?}", e);
+                // Don't retry immediately, wait for next cycle
+            }
+        }
     }
 }

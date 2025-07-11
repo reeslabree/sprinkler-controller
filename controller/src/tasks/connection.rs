@@ -1,4 +1,4 @@
-use crate::{embassy_websocket::EmbassyWebSocket, macros::mk_static};
+use crate::embassy_websocket::EmbassyWebSocket;
 use embassy_net::Stack;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
@@ -10,6 +10,9 @@ const BUFFER_SIZE: usize = 4_000;
 
 const WIFI_SSID: &str = env!("WIFI_SSID");
 const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
+
+static mut RX_BUFFER: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+static mut TX_BUFFER: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
 
 #[embassy_executor::task]
 pub async fn connection(
@@ -77,8 +80,8 @@ pub async fn connection(
                     info!("Gateway: {:?}", config.gateway.unwrap());
                     info!("DNS: {}", config.dns_servers[0]);
 
-                    let rx_buffer = mk_static!([u8; BUFFER_SIZE], [0; BUFFER_SIZE]);
-                    let tx_buffer = mk_static!([u8; BUFFER_SIZE], [0; BUFFER_SIZE]);
+                    let rx_buffer = unsafe { &mut RX_BUFFER };
+                    let tx_buffer = unsafe { &mut TX_BUFFER };
 
                     info!("Connecting to websocket");
                     match websocket.connect(&stack, rx_buffer, tx_buffer).await {
@@ -86,7 +89,14 @@ pub async fn connection(
                             info!("Connected to websocket");
                             let mut connection_text = String::<10>::new();
                             let _ = connection_text.push_str("controller");
-                            websocket.write_text(connection_text).await.unwrap();
+                            match websocket.write_text(connection_text).await {
+                                Ok(()) => {
+                                    info!("Sent controller identification");
+                                }
+                                Err(e) => {
+                                    warn!("Failed to send controller identification: {:?}", e);
+                                }
+                            }
                         }
                         Err(e) => {
                             warn!("failed to connect to websocket: {e:?}");

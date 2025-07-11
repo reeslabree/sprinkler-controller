@@ -1,4 +1,3 @@
-pub mod controller;
 pub mod server;
 pub mod user;
 
@@ -6,7 +5,6 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::{
     message::{
-        controller::ControllerMessage,
         server::ServerResponse,
         user::{
             UserMessage, UserMessageResponse, status::StatusResponse,
@@ -16,6 +14,8 @@ use crate::{
     types::{ClientMap, ClientType, ControllerTimestamp},
 };
 
+use shared_types::{ControllerMessage, ServerMessage, ToggleZonePayload};
+
 pub async fn send_to_client(clients: &ClientMap, client_type: &ClientType, message: &str) -> bool {
     let clients = clients.lock().await;
     if let Some(sender) = clients.get(client_type) {
@@ -23,6 +23,10 @@ pub async fn send_to_client(clients: &ClientMap, client_type: &ClientType, messa
     } else {
         false
     }
+}
+
+pub async fn send_to_controller(clients: &ClientMap, message: &str) -> bool {
+    send_to_client(clients, &ClientType::Controller, message).await
 }
 
 pub async fn handle_user_message(
@@ -34,7 +38,15 @@ pub async fn handle_user_message(
         UserMessage::ToggleZone(payload) => {
             println!("ToggleZone: {payload:?}");
 
-            // TODO: write to controller to toggle zone
+            send_to_controller(
+                clients,
+                &serde_json::to_string(&ServerMessage::ToggleZone(ToggleZonePayload {
+                    zone: payload.zone,
+                    activate: payload.activate,
+                }))
+                .unwrap(),
+            )
+            .await;
 
             send_to_client(
                 clients,
@@ -79,7 +91,9 @@ pub async fn handle_user_message(
 
 pub async fn handle_controller_message(clients: &ClientMap, msg: ControllerMessage) {
     match msg {
-        _ => (),
+        ControllerMessage::KeepAlive(payload) => {
+            println!("KeepAlive: {payload:?}");
+        }
     }
 }
 

@@ -13,17 +13,13 @@ const SOCKET_TIMEOUT_SECONDS: u64 = 20;
 const HANDSHAKE_BUFFER_SIZE: usize = 512;
 const PATH_BUFFER_SIZE: usize = 64;
 
-struct WebSocketInner<'a> {
-    socket: Option<TcpSocket<'a>>,
-    rng: Option<Rng>,
-    is_connected: bool,
-}
-
 pub struct EmbassyWebSocket<'a> {
-    inner: Mutex<CriticalSectionRawMutex, WebSocketInner<'a>>,
+    socket: Mutex<CriticalSectionRawMutex, Option<TcpSocket<'a>>>,
+    rng: Mutex<CriticalSectionRawMutex, Option<Rng>>,
     ip: Ipv4Addr,
     port: u16,
     path: heapless::String<PATH_BUFFER_SIZE>,
+    is_connected: Mutex<CriticalSectionRawMutex, bool>,
 }
 
 impl<'a> EmbassyWebSocket<'a> {
@@ -33,23 +29,19 @@ impl<'a> EmbassyWebSocket<'a> {
         path: heapless::String<PATH_BUFFER_SIZE>,
         rng: Rng,
     ) -> Result<Self, EmbassyWebSocketError> {
-        let inner = WebSocketInner {
-            socket: None,
-            rng: Some(rng),
-            is_connected: false,
-        };
-
         Ok(Self {
-            inner: Mutex::new(inner),
+            socket: Mutex::new(None),
+            rng: Mutex::new(Some(rng)),
             ip,
             port,
             path,
+            is_connected: Mutex::new(false),
         })
     }
 
     pub async fn is_connected(&self) -> bool {
-        let inner = self.inner.lock().await;
-        inner.is_connected
+        let is_connected = self.is_connected.lock().await;
+        *is_connected
     }
 
     pub async fn connect<'b>(
@@ -61,7 +53,6 @@ impl<'a> EmbassyWebSocket<'a> {
     where
         'b: 'a,
     {
-        let mut inner = self.inner.lock().await;
         let mut socket = TcpSocket::new(*stack, rx_buffer, tx_buffer);
 
         socket
@@ -69,7 +60,11 @@ impl<'a> EmbassyWebSocket<'a> {
             .await
             .map_err(|_e| EmbassyWebSocketError::ConnectionFailed)?;
 
-        let websocket_key = generate_websocket_key(&mut inner.rng.as_mut().unwrap())?;
+        let websocket_key = {
+            let mut rng_guard = self.rng.lock().await;
+            generate_websocket_key(rng_guard.as_mut().unwrap())?
+        };
+
         let upgrade_request =
             build_upgrade_request(self.ip, self.port, self.path.clone(), websocket_key)?;
 
@@ -84,24 +79,9 @@ impl<'a> EmbassyWebSocket<'a> {
 
         wait_for_handshake_response(&mut socket).await?;
 
-        inner.socket = Some(socket);
-        inner.is_connected = true;
+        *self.socket.lock().await = Some(socket);
+        *self.is_connected.lock().await = true;
 
-        Ok(())
-    }
-
-    async fn write(&self, data: &[u8]) -> Result<(), EmbassyWebSocketError> {
-        let mut inner = self.inner.lock().await;
-        if let Some(socket) = inner.socket.as_mut() {
-            socket
-                .write(data)
-                .await
-                .map_err(|_e| EmbassyWebSocketError::SendFailed)?;
-            socket
-                .flush()
-                .await
-                .map_err(|_e| EmbassyWebSocketError::SendFailed)?;
-        }
         Ok(())
     }
 
@@ -112,42 +92,70 @@ impl<'a> EmbassyWebSocket<'a> {
     where
         [u8; N + 6]: Sized,
     {
-        let mut inner = self.inner.lock().await;
+        let masking_key = {
+            let mut rng_guard = self.rng.lock().await;
+            if let Some(rng) = rng_guard.as_mut() {
+                let mut key = [0u8; 4];
+                rng.read(&mut key);
+                key
+            } else {
+                return Err(EmbassyWebSocketError::ConnectionClosed);
+            }
+        };
 
-        if let Some(rng) = inner.rng.as_mut() {
-            let mut masking_key = [0u8; 4];
-            rng.read(&mut masking_key);
+        let frame = bytes_to_websocket_frame(text, masking_key)
+            .map_err(|_| EmbassyWebSocketError::FrameCreationFailed)?;
 
-            let frame = bytes_to_websocket_frame(text, masking_key)
-                .map_err(|_| EmbassyWebSocketError::FrameCreationFailed)?;
-
-            drop(inner); // Release the lock before calling write
-            self.write(&frame).await
+        let mut socket_guard = self.socket.lock().await;
+        if let Some(socket) = socket_guard.as_mut() {
+            socket
+                .write(&frame)
+                .await
+                .map_err(|_e| EmbassyWebSocketError::SendFailed)?;
+            socket
+                .flush()
+                .await
+                .map_err(|_e| EmbassyWebSocketError::SendFailed)?;
+            Ok(())
         } else {
             Err(EmbassyWebSocketError::ConnectionClosed)
         }
     }
 
     pub async fn read(&self, buffer: &mut [u8]) -> Result<usize, EmbassyWebSocketError> {
-        let mut inner = self.inner.lock().await;
+        let mut socket_guard = self.socket.lock().await;
 
-        let bytes_read = if let Some(socket) = inner.socket.as_mut() {
+        if let Some(socket) = socket_guard.as_mut() {
             socket
                 .read(buffer)
                 .await
                 .map_err(|_e| EmbassyWebSocketError::ReadError)
         } else {
             Err(EmbassyWebSocketError::ConnectionClosed)
-        };
+        }
+    }
 
-        bytes_read
+    pub async fn read_with_timeout(
+        &self,
+        buffer: &mut [u8],
+        timeout: Duration,
+    ) -> Result<usize, EmbassyWebSocketError> {
+        let mut socket_guard = self.socket.lock().await;
+
+        if let Some(socket) = socket_guard.as_mut() {
+            match embassy_time::with_timeout(timeout, socket.read(buffer)).await {
+                Ok(result) => result.map_err(|_e| EmbassyWebSocketError::ReadError),
+                Err(_) => Err(EmbassyWebSocketError::ReadError),
+            }
+        } else {
+            Err(EmbassyWebSocketError::ConnectionClosed)
+        }
     }
 
     pub async fn disconnect(self) -> Result<(), EmbassyWebSocketError> {
-        let mut inner = self.inner.lock().await;
-        if let Some(mut socket) = inner.socket.take() {
+        if let Some(mut socket) = self.socket.lock().await.take() {
             socket.close();
-            inner.is_connected = false;
+            *self.is_connected.lock().await = false;
         }
         Ok(())
     }

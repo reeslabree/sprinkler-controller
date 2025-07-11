@@ -58,6 +58,11 @@ static_cell = { version = "2.1.0", features = ["nightly"] }
 embedded-svc = { version = "0.28.1", default-features = false, features = [] }
 base64ct = { version = "1.8.0", features = [], default-features = false }
 embassy-futures = { version = "0.1.1", features = ["log"] }
+shared = { path = "../shared" }
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.130", default-features = false, features = [
+  "alloc",
+] }
 
 [profile.dev.package.esp-wifi]
 opt-level = 3

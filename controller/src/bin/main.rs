@@ -6,7 +6,7 @@ use core::str::FromStr;
 
 use controller::embassy_websocket::EmbassyWebSocket;
 use controller::macros::mk_static;
-use controller::tasks::{connection, keep_alive, net_task};
+use controller::tasks::{connection, keep_alive, net_task, read_websocket};
 use embassy_executor::Spawner;
 use embassy_net::{Stack, StackResources};
 use esp_backtrace as _;
@@ -83,4 +83,5 @@ async fn main(spawner: Spawner) {
     spawner.spawn(connection(controller, stack, websocket)).ok();
     spawner.spawn(net_task(runner)).ok();
     spawner.spawn(keep_alive(websocket)).ok();
+    spawner.spawn(read_websocket(websocket)).ok();
 }

@@ -1,13 +1,15 @@
 mod message;
 mod types;
 
-use crate::message::controller::ControllerMessage;
 use crate::message::server::ServerResponse;
 use crate::message::server::controller_heartbeat::ControllerHeartbeatPayload;
 use crate::message::user::UserMessage;
-use crate::message::{handle_server_message, handle_user_message, send_to_client};
+use crate::message::{
+    handle_controller_message, handle_server_message, handle_user_message, send_to_client,
+};
 use crate::types::{ClientMap, ClientType, ControllerTimestamp};
 use futures_util::{SinkExt, StreamExt};
+use shared_types::ControllerMessage;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
@@ -166,6 +168,8 @@ pub async fn handle_incoming_message(
             };
 
             println!("Controller Message: {parsed_msg:?}");
+
+            handle_controller_message(clients, parsed_msg).await;
         }
     }
 }
