@@ -1,11 +1,9 @@
+use crate::consts::KEEP_ALIVE_DURATION_MS;
 use crate::embassy_websocket::EmbassyWebSocket;
-
 use embassy_time::{Duration, Timer};
 use heapless::String;
 use log::{info, warn};
 use shared::{ControllerMessage, KeepAlivePayload};
-
-const KEEP_ALIVE_DURATION_MS: u64 = 2_500;
 
 #[embassy_executor::task]
 pub async fn keep_alive(websocket: &'static EmbassyWebSocket<'static>) {
@@ -26,12 +24,9 @@ pub async fn keep_alive(websocket: &'static EmbassyWebSocket<'static>) {
         info!("Sending keep alive packet: {:?}", keep_alive_packet);
 
         match websocket.write_text(keep_alive_packet).await {
-            Ok(()) => {
-                // Successfully sent keep alive
-            }
+            Ok(()) => {}
             Err(e) => {
                 warn!("Failed to send keep alive packet: {:?}", e);
-                // Don't retry immediately, wait for next cycle
             }
         }
     }

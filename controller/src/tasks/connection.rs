@@ -1,3 +1,4 @@
+use crate::consts::{BUFFER_SIZE, WIFI_PASSWORD, WIFI_SSID};
 use crate::embassy_websocket::EmbassyWebSocket;
 use embassy_net::Stack;
 use embassy_time::{Duration, Timer};
@@ -5,11 +6,6 @@ use esp_backtrace as _;
 use esp_wifi::wifi::{ClientConfiguration, Configuration, WifiController, WifiEvent, WifiState};
 use heapless::String;
 use log::{info, warn};
-
-const BUFFER_SIZE: usize = 4_000;
-
-const WIFI_SSID: &str = env!("WIFI_SSID");
-const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
 
 static mut RX_BUFFER: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
 static mut TX_BUFFER: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];

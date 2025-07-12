@@ -1,12 +1,15 @@
+//! This task is currently unused.
+//! May remove later, was using as a utility task.
+//! Cannot run concurrently with the connection task.
+
+use crate::consts::{WIFI_PASSWORD, WIFI_SSID};
+
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_wifi::wifi::{
     ClientConfiguration, Configuration, Protocol, WifiController, WifiEvent, WifiState,
 };
 use log::info;
-
-const WIFI_SSID: &str = env!("WIFI_SSID");
-const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
 
 #[embassy_executor::task]
 pub async fn scan_networks(controller: &'static mut WifiController<'static>) {

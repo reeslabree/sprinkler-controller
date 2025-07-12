@@ -1,15 +1,21 @@
+use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
+use esp_hal::gpio::Level;
 use heapless::{String, Vec};
 use log::{error, info};
 use shared::ServerMessage;
 
+use crate::consts::{BUFFER_SIZE, READ_TIMEOUT_MS};
 use crate::embassy_websocket::EmbassyWebSocket;
-
-const BUFFER_SIZE: usize = 4_000;
-const READ_TIMEOUT_MS: u64 = 100; // 100ms timeout for reads
+use crate::tasks::toggle_zone;
+use crate::types::DioControllerMutex;
 
 #[embassy_executor::task]
-pub async fn read_websocket(websocket: &'static EmbassyWebSocket<'static>) {
+pub async fn read_websocket(
+    websocket: &'static EmbassyWebSocket<'static>,
+    controller: &'static DioControllerMutex,
+    spawner: Spawner,
+) {
     loop {
         if !websocket.is_connected().await {
             Timer::after(Duration::from_millis(2_500)).await;
@@ -63,6 +69,18 @@ pub async fn read_websocket(websocket: &'static EmbassyWebSocket<'static>) {
         match parsed {
             ServerMessage::ToggleZone(payload) => {
                 info!("Activating zone: {:?}, {}", payload.zone, payload.activate);
+                match spawner.spawn(toggle_zone(
+                    controller,
+                    payload.zone as usize,
+                    if payload.activate {
+                        Level::High
+                    } else {
+                        Level::Low
+                    },
+                )) {
+                    Ok(_) => (),
+                    Err(e) => error!("Failed to spawn toggle_zone task: {:?}", e),
+                };
             }
         }
     }

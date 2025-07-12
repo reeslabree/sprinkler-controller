@@ -14,7 +14,7 @@ use crate::{
     types::{ClientMap, ClientType, ControllerTimestamp},
 };
 
-use shared_types::{ControllerMessage, ServerMessage, ToggleZonePayload};
+use shared::{ControllerMessage, ServerMessage, ToggleZonePayload};
 
 pub async fn send_to_client(clients: &ClientMap, client_type: &ClientType, message: &str) -> bool {
     let clients = clients.lock().await;

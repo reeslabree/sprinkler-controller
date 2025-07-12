@@ -772,7 +772,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shared-types"
+name = "shared"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -1029,7 +1029,7 @@ dependencies = [
  "futures-util",
  "serde",
  "serde_json",
- "shared-types",
+ "shared",
  "tokio",
  "tokio-tungstenite",
 ]

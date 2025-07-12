@@ -9,7 +9,7 @@ use crate::message::{
 };
 use crate::types::{ClientMap, ClientType, ControllerTimestamp};
 use futures_util::{SinkExt, StreamExt};
-use shared_types::ControllerMessage;
+use shared::ControllerMessage;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;

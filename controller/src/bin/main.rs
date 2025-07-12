@@ -4,13 +4,18 @@
 use core::net::Ipv4Addr;
 use core::str::FromStr;
 
+use controller::consts::{WEBSOCKET_IP, WEBSOCKET_PATH, WEBSOCKET_PORT};
+use controller::dio_controller::DioController;
 use controller::embassy_websocket::EmbassyWebSocket;
 use controller::macros::mk_static;
 use controller::tasks::{connection, keep_alive, net_task, read_websocket};
+use controller::types::DioControllerMutex;
 use embassy_executor::Spawner;
 use embassy_net::{Stack, StackResources};
+use embassy_sync::mutex::Mutex;
 use esp_backtrace as _;
 use esp_hal::clock::CpuClock;
+use esp_hal::gpio::AnyPin;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
 use esp_wifi::wifi::WifiController;
@@ -18,16 +23,24 @@ use esp_wifi::EspWifiController;
 use heapless::String;
 use log::info;
 
-const WEBSOCKET_IP: &str = env!("WEBSOCKET_IP");
-const WEBSOCKET_PORT: &str = env!("WEBSOCKET_PORT");
-const WEBSOCKET_PATH: &str = env!("WEBSOCKET_PATH");
-
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
+
+    // intialize gpio pins
+    let zone_pins: [AnyPin; 6] = [
+        peripherals.GPIO23.into(),
+        peripherals.GPIO22.into(),
+        peripherals.GPIO21.into(),
+        peripherals.GPIO20.into(),
+        peripherals.GPIO19.into(),
+        peripherals.GPIO18.into(),
+    ];
+    let controller = DioController::new(zone_pins);
+    let controller_mutex = mk_static!(DioControllerMutex, Mutex::new(controller));
 
     esp_alloc::heap_allocator!(size: 72 * 1024);
 
@@ -83,5 +96,7 @@ async fn main(spawner: Spawner) {
     spawner.spawn(connection(controller, stack, websocket)).ok();
     spawner.spawn(net_task(runner)).ok();
     spawner.spawn(keep_alive(websocket)).ok();
-    spawner.spawn(read_websocket(websocket)).ok();
+    spawner
+        .spawn(read_websocket(websocket, controller_mutex, spawner))
+        .ok();
 }

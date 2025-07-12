@@ -4,11 +4,12 @@ This is my foray into embedded software development on the ESP32. I'm reaching a
 
 ### Components
 
-| Application        | Description                                                                                                                                                                                                                   |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `controller`       | This is the code running on the ESP32. The goal is to connect to the `websocket-server` using `ws://` protocol which will then provide an interface for the user (via the dashboard) and the controller to talk to eachother. |
-| `server` | A lightweight server written using `tokio-tungstenite` to relay messages back and forth between the controller and the dashboard.                                                                                             |
-| `dashboard`        | A basic Next.js application that will serve as a simple user interface for interacting with the controller, as well as displaying information streaming from the controller to the user.                                      |
+| Application  | Description                                                                                                                                                                                                                   |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `controller` | This is the code running on the ESP32. The goal is to connect to the `websocket-server` using `ws://` protocol which will then provide an interface for the user (via the dashboard) and the controller to talk to eachother. |
+| `server`     | A lightweight server written using `tokio-tungstenite` to relay messages back and forth between the controller and the dashboard.                                                                                             |
+| `dashboard`  | A basic Next.js application that will serve as a simple user interface for interacting with the controller, as well as displaying information streaming from the controller to the user.                                      |
+| `shared`     | Rust type definitions for server-controller messages.                                                                                                                                                                         |
 
 ### Future Ideas
 
