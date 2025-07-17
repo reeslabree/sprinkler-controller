@@ -10,11 +10,11 @@ use serde::{Deserialize, Serialize};
 
 pub const CONFIG_FILE_PATH: &str = ".config.toml";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
-    schedules: Schedules,
-    stagger_on: bool,
-    stagger_zones: bool,
+    pub schedules: Schedules,
+    pub stagger_on: bool,
+    pub stagger_zones: bool,
 }
 
 impl Default for Config {

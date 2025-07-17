@@ -1,7 +1,9 @@
+pub mod get_config;
 pub mod set_schedule;
 pub mod status;
 pub mod toggle_zone;
 
+use crate::message::user::get_config::{GetConfigPayload, GetConfigResponse};
 use crate::message::user::set_schedule::{SetSchedulePayload, SetScheduleResponse};
 use crate::message::user::status::{StatusPayload, StatusResponse};
 use crate::message::user::toggle_zone::{ToggleZonePayload, ToggleZoneResponse};
@@ -23,6 +25,7 @@ pub enum UserMessage {
     Status(StatusPayload),
     KeepAlive(KeepAlivePayload),
     SetSchedule(SetSchedulePayload),
+    GetConfig(GetConfigPayload),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,4 +35,5 @@ pub enum UserMessageResponse {
     StatusResponse(StatusResponse),
     KeepAliveResponse(KeepAliveResponse),
     SetScheduleResponse(SetScheduleResponse),
+    GetConfigResponse(GetConfigResponse),
 }

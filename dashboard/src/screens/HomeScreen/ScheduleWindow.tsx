@@ -28,17 +28,13 @@ import {
 import { useState, useEffect } from "react";
 
 export const ScheduleWindow = () => {
-  const { sendMessage, isClientConnected } = useWebSocket();
+  const {
+    sendMessage,
+    isClientConnected,
+    schedules: serverSchedules,
+  } = useWebSocket();
 
-  const [schedules, setSchedules] = useState<Schedules>([
-    {
-      name: "Default Schedule",
-      days: [],
-      activePeriods: [],
-      startTimeMinutes: 0,
-      isActive: true,
-    },
-  ]);
+  const [schedules, setSchedules] = useState<Schedules>(serverSchedules || []);
 
   useEffect(() => {
     if (!isClientConnected) {

@@ -62,15 +62,32 @@ export interface SetScheduleResponse extends BaseMessage {
   };
 }
 
+// Get Config
+export interface GetConfigPayload extends BaseMessage {
+  type: "getConfig";
+  payload: {};
+}
+
+export interface GetConfigResponse extends BaseMessage {
+  type: "getConfigResponse";
+  payload: {
+    schedules: Schedules;
+    staggerOn: boolean;
+    staggerZones: boolean;
+  };
+}
+
 // Generics
 export type ClientMessage =
   | KeepAlivePayload
   | ToggleZonePayload
   | StatusPayload
-  | SetSchedulePayload;
+  | SetSchedulePayload
+  | GetConfigPayload;
 
 export type ClientMessageResponse =
   | KeepAliveResponse
   | ToggleZoneResponse
   | StatusResponse
-  | SetScheduleResponse;
+  | SetScheduleResponse
+  | GetConfigResponse;

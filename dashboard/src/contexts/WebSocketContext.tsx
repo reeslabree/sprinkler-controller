@@ -1,9 +1,9 @@
 import {
   ClientMessage,
   ClientMessageResponse,
+  GetConfigPayload,
+  Schedules,
   ServerMessage,
-  StatusPayload,
-  StatusResponse,
 } from "@/types";
 import {
   createContext,
@@ -18,6 +18,9 @@ interface WebSocketContextType {
   isClientConnected: boolean;
   isControllerConnected: boolean;
   sendMessage: <T extends ClientMessage>(message: T) => void;
+  schedules: Schedules;
+  staggerOn: boolean;
+  staggerZones: boolean;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(
@@ -32,6 +35,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isClientConnected, setIsClientConnected] = useState(false);
   const [isControllerConnected, setIsControllerConnected] = useState(false);
+  const [schedules, setSchedules] = useState<Schedules>([]);
+  const [staggerOn, setStaggerOn] = useState(false);
+  const [staggerZones, setStaggerZones] = useState(false);
   const [latestResponse, setLatestResponse] =
     useState<ClientMessageResponse | null>(null);
 
@@ -45,7 +51,16 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     websocket.onopen = () => {
       console.log("connected to server");
       setIsClientConnected(true);
+
+      // identifier string
       websocket.send("user");
+
+      // get config
+      const getConfigPayload: GetConfigPayload = {
+        type: "getConfig",
+        payload: {},
+      };
+      websocket.send(JSON.stringify(getConfigPayload));
     };
 
     websocket.onclose = () => {
@@ -67,6 +82,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
           console.log("Controller heartbeat: ", data.payload);
           const isControllerConnected = data.payload.isControllerConnected;
           setIsControllerConnected(isControllerConnected);
+          break;
+        case "getConfigResponse":
+          console.log("Config: ", data.payload);
+          const { schedules, staggerOn, staggerZones } = data.payload;
+          setSchedules(schedules);
+          setStaggerOn(staggerOn);
+          setStaggerZones(staggerZones);
           break;
         case "keepAliveResponse":
         case "toggleZoneResponse":
@@ -101,6 +123,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         isClientConnected,
         isControllerConnected,
         sendMessage,
+        schedules,
+        staggerOn,
+        staggerZones,
       }}
     >
       {children}

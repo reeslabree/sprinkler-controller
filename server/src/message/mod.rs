@@ -7,8 +7,9 @@ use crate::{
     message::{
         server::ServerResponse,
         user::{
-            UserMessage, UserMessageResponse, set_schedule::SetScheduleResponse,
-            status::StatusResponse, toggle_zone::ToggleZoneResponse,
+            UserMessage, UserMessageResponse, get_config::GetConfigResponse,
+            set_schedule::SetScheduleResponse, status::StatusResponse,
+            toggle_zone::ToggleZoneResponse,
         },
     },
     types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp},
@@ -102,6 +103,22 @@ pub async fn handle_user_message(
                 &ClientType::User,
                 &serde_json::to_string(&UserMessageResponse::SetScheduleResponse(response))
                     .unwrap(),
+            )
+            .await;
+        }
+        UserMessage::GetConfig(_payload) => {
+            let config_guard = config.lock().await;
+            let config = config_guard.clone();
+            let response = GetConfigResponse {
+                schedules: config.schedules,
+                stagger_on: config.stagger_on,
+                stagger_zones: config.stagger_zones,
+            };
+
+            send_to_client(
+                clients,
+                &ClientType::User,
+                &serde_json::to_string(&UserMessageResponse::GetConfigResponse(response)).unwrap(),
             )
             .await;
         }
