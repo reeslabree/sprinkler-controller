@@ -1,5 +1,7 @@
+use crate::config::Config;
+
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::sync::Arc;
 use std::time::Instant;
@@ -9,6 +11,7 @@ use tokio_tungstenite::tungstenite;
 
 pub type ClientMap = Arc<Mutex<HashMap<ClientType, UnboundedSender<tungstenite::Message>>>>;
 pub type ControllerTimestamp = Arc<Mutex<Option<Instant>>>;
+pub type ConfigMutex = Arc<Mutex<Config>>;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ClientType {
@@ -24,3 +27,60 @@ impl Display for ClientType {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub enum Day {
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+    Sunday,
+}
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Hash, Copy)]
+#[serde(rename_all = "camelCase")]
+pub enum Zone {
+    Zone1,
+    Zone2,
+    Zone3,
+    Zone4,
+    Zone5,
+    Zone6,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivePeriod {
+    pub zone: Zone,
+    pub duration_minutes: u32,
+}
+
+// in service of having unique zone entries within the active_periods set
+impl PartialEq for ActivePeriod {
+    fn eq(&self, other: &Self) -> bool {
+        self.zone == other.zone
+    }
+}
+
+impl Eq for ActivePeriod {}
+
+impl std::hash::Hash for ActivePeriod {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.zone.hash(state);
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Schedule {
+    pub name: String,
+    pub days: HashSet<Day>,
+    pub active_periods: HashSet<ActivePeriod>,
+    pub start_time_minutes: u32,
+    pub is_active: bool,
+}
+
+pub type Schedules = Vec<Schedule>;

@@ -7,11 +7,11 @@ use crate::{
     message::{
         server::ServerResponse,
         user::{
-            UserMessage, UserMessageResponse, status::StatusResponse,
-            toggle_zone::ToggleZoneResponse,
+            UserMessage, UserMessageResponse, set_schedule::SetScheduleResponse,
+            status::StatusResponse, toggle_zone::ToggleZoneResponse,
         },
     },
-    types::{ClientMap, ClientType, ControllerTimestamp},
+    types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp},
 };
 
 use shared::{ControllerMessage, ServerMessage, ToggleZonePayload};
@@ -32,6 +32,7 @@ pub async fn send_to_controller(clients: &ClientMap, message: &str) -> bool {
 pub async fn handle_user_message(
     clients: &ClientMap,
     controller_timestamp: &ControllerTimestamp,
+    config: &ConfigMutex,
     msg: UserMessage,
 ) {
     match msg {
@@ -85,6 +86,28 @@ pub async fn handle_user_message(
         }
         UserMessage::KeepAlive(payload) => {
             println!("KeepAlive: {payload:?}");
+        }
+        UserMessage::SetSchedule(payload) => {
+            let mut config_guard = config.lock().await;
+            config_guard.set_schedules(payload.schedules);
+            let response = match config_guard.save() {
+                Ok(_) => SetScheduleResponse {
+                    success: true,
+                    error: None,
+                },
+                Err(e) => SetScheduleResponse {
+                    success: false,
+                    error: Some(e),
+                },
+            };
+
+            send_to_client(
+                clients,
+                &ClientType::User,
+                &serde_json::to_string(&UserMessageResponse::SetScheduleResponse(response))
+                    .unwrap(),
+            )
+            .await;
         }
     }
 }

@@ -1,15 +1,16 @@
 use serde::{Deserialize, Serialize};
 
+use crate::types::Schedules;
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ToggleZonePayload {
-    pub zone: u8,
-    pub activate: bool,
+pub struct SetSchedulePayload {
+    pub schedules: Schedules,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ToggleZoneResponse {
+pub struct SetScheduleResponse {
     pub success: bool,
     pub error: Option<String>,
 }

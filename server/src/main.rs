@@ -1,13 +1,15 @@
+mod config;
 mod message;
 mod types;
 
+use crate::config::Config;
 use crate::message::server::ServerResponse;
 use crate::message::server::controller_heartbeat::ControllerHeartbeatPayload;
 use crate::message::user::UserMessage;
 use crate::message::{
     handle_controller_message, handle_server_message, handle_user_message, send_to_client,
 };
-use crate::types::{ClientMap, ClientType, ControllerTimestamp};
+use crate::types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp};
 use futures_util::{SinkExt, StreamExt};
 use shared::ControllerMessage;
 use std::sync::Arc;
@@ -22,6 +24,7 @@ async fn main() {
     let listener = TcpListener::bind("0.0.0.0:9001").await.unwrap();
     let clients: ClientMap = types::ClientMap::default();
     let controller_timestamp: ControllerTimestamp = Arc::new(Mutex::new(None));
+    let config: ConfigMutex = Arc::new(Mutex::new(Config::load().unwrap()));
 
     // Spawn heartbeat task
     let heartbeat_clients = clients.clone();
@@ -33,6 +36,7 @@ async fn main() {
     while let Ok((stream, _)) = listener.accept().await {
         let clients = clients.clone();
         let controller_timestamp = controller_timestamp.clone();
+        let config = config.clone();
         tokio::spawn(async move {
             println!("Someone connected");
             let ws_stream = match accept_async(stream).await {
@@ -79,8 +83,14 @@ async fn main() {
                 if msg.is_text() {
                     let text = msg.to_text().unwrap();
 
-                    handle_incoming_message(&clients, &controller_timestamp, client_type, text)
-                        .await;
+                    handle_incoming_message(
+                        &clients,
+                        &controller_timestamp,
+                        client_type,
+                        text,
+                        &config,
+                    )
+                    .await;
                 }
             }
 
@@ -131,6 +141,7 @@ pub async fn handle_incoming_message(
     controller_timestamp: &ControllerTimestamp,
     client_type: ClientType,
     text: &str,
+    config: &ConfigMutex,
 ) {
     match client_type {
         ClientType::User => {
@@ -150,10 +161,9 @@ pub async fn handle_incoming_message(
 
             println!("User Message: {parsed_msg:?}");
 
-            handle_user_message(&clients, &controller_timestamp, parsed_msg).await;
+            handle_user_message(&clients, &controller_timestamp, &config, parsed_msg).await;
         }
         ClientType::Controller => {
-            // Update timestamp when controller sends a message
             {
                 let mut timestamp_guard = controller_timestamp.lock().await;
                 *timestamp_guard = Some(Instant::now());

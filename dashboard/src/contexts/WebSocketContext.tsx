@@ -71,6 +71,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         case "keepAliveResponse":
         case "toggleZoneResponse":
         case "statusResponse":
+        case "setScheduleResponse":
           setLatestResponse(data);
           break;
         default:

@@ -14,6 +14,10 @@ impl DioController {
                 .unwrap();
         }
 
+        for zone in &mut zones {
+            zone.set_low();
+        }
+
         Self { zones }
     }
 
@@ -26,11 +30,11 @@ impl DioController {
     }
 
     pub fn toggle_zone(&mut self, zone: usize, level: Level) -> Result<(), &str> {
-        if zone > 6 {
+        if zone > 7 || zone < 1 {
             return Err("Zone number out of range");
         }
 
-        let zone = &mut self.zones[zone];
+        let zone = &mut self.zones[zone - 1];
         zone.set_level(level);
         Ok(())
     }

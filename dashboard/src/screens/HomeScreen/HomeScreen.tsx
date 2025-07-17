@@ -8,6 +8,7 @@ import {
   IoSettingsSharp,
 } from "react-icons/io5";
 import { ControlWindow } from "./ControlWindow";
+import { ScheduleWindow } from "./ScheduleWindow";
 
 export const HomeScreen = () => {
   const [openTab, setOpenTab] = useState<HomeTabs>(HomeTabs.Data);
@@ -40,6 +41,7 @@ export const HomeScreen = () => {
         </div>
 
         {openTab === HomeTabs.Control && <ControlWindow />}
+        {openTab === HomeTabs.Schedules && <ScheduleWindow />}
       </div>
     </SafeAreaPage>
   );

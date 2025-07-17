@@ -79,8 +79,8 @@ export const ControlWindow = () => {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-center items-center px-10">
-      <div className="w-full grid grid-cols-3 gap-x-4 gap-y-24 justify-items-center">
+    <div className="w-full flex-1 flex flex-col justify-center items-center gap-6">
+      <div className="w-fit grid grid-cols-3 gap-x-32 gap-y-24 justify-items-center">
         <ControlItem
           title="Zone 1"
           isOn={isZone1On}

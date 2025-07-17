@@ -1,3 +1,5 @@
+import { Schedules } from "./schedules";
+
 interface BaseMessage {
   type: string;
   payload: Record<string, unknown>;
@@ -44,12 +46,31 @@ export interface StatusResponse extends BaseMessage {
   };
 }
 
+// Set Schedule
+export interface SetSchedulePayload extends BaseMessage {
+  type: "setSchedule";
+  payload: {
+    schedules: Schedules;
+  };
+}
+
+export interface SetScheduleResponse extends BaseMessage {
+  type: "setScheduleResponse";
+  payload: {
+    success: boolean;
+    error?: string;
+  };
+}
+
+// Generics
 export type ClientMessage =
   | KeepAlivePayload
   | ToggleZonePayload
-  | StatusPayload;
+  | StatusPayload
+  | SetSchedulePayload;
 
 export type ClientMessageResponse =
   | KeepAliveResponse
   | ToggleZoneResponse
-  | StatusResponse;
+  | StatusResponse
+  | SetScheduleResponse;

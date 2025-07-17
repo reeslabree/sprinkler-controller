@@ -7,5 +7,6 @@ pub mod consts;
 pub mod dio_controller;
 pub mod embassy_websocket;
 pub mod macros;
+pub mod storage;
 pub mod tasks;
 pub mod types;

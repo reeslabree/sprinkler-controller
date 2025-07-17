@@ -1,0 +1,50 @@
+pub mod load;
+pub mod save;
+
+use crate::types::Schedules;
+
+use core::default::Default;
+use load::load;
+use save::save;
+use serde::{Deserialize, Serialize};
+
+pub const CONFIG_FILE_PATH: &str = ".config.toml";
+
+#[derive(Serialize, Deserialize)]
+pub struct Config {
+    schedules: Schedules,
+    stagger_on: bool,
+    stagger_zones: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            schedules: vec![],
+            stagger_on: false,
+            stagger_zones: false,
+        }
+    }
+}
+
+impl Config {
+    pub fn load() -> Result<Self, String> {
+        load()
+    }
+
+    pub fn save(&self) -> Result<(), String> {
+        save(self).map_err(|e| e.to_string())
+    }
+
+    pub fn set_schedules(&mut self, schedules: Schedules) {
+        self.schedules = schedules;
+    }
+
+    pub fn set_stagger_on(&mut self, stagger_on: bool) {
+        self.stagger_on = stagger_on;
+    }
+
+    pub fn set_stagger_zones(&mut self, stagger_zones: bool) {
+        self.stagger_zones = stagger_zones;
+    }
+}
