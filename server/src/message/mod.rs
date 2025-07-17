@@ -35,10 +35,10 @@ pub async fn handle_user_message(
     config: &ConfigMutex,
     msg: UserMessage,
 ) {
+    println!("User Message: {msg:?}");
+
     match msg {
         UserMessage::ToggleZone(payload) => {
-            println!("ToggleZone: {payload:?}");
-
             send_to_controller(
                 clients,
                 &serde_json::to_string(&ServerMessage::ToggleZone(ToggleZonePayload {
@@ -63,8 +63,6 @@ pub async fn handle_user_message(
             .await;
         }
         UserMessage::Status(payload) => {
-            println!("Status: {payload:?}");
-
             let is_controller_connected = {
                 let timestamp_guard = controller_timestamp.lock().await;
                 if let Some(last_message) = *timestamp_guard {
@@ -84,9 +82,7 @@ pub async fn handle_user_message(
             )
             .await;
         }
-        UserMessage::KeepAlive(payload) => {
-            println!("KeepAlive: {payload:?}");
-        }
+        UserMessage::KeepAlive(_payload) => {}
         UserMessage::SetSchedule(payload) => {
             let mut config_guard = config.lock().await;
             config_guard.set_schedules(payload.schedules);
@@ -114,9 +110,7 @@ pub async fn handle_user_message(
 
 pub async fn handle_controller_message(clients: &ClientMap, msg: ControllerMessage) {
     match msg {
-        ControllerMessage::KeepAlive(payload) => {
-            println!("KeepAlive: {payload:?}");
-        }
+        ControllerMessage::KeepAlive(payload) => {}
     }
 }
 

@@ -1,4 +1,10 @@
-import { Button, DaySelector, HourSelector, Switch } from "@/components";
+import {
+  Button,
+  DaySelector,
+  HourSelector,
+  Switch,
+  TimePickerInput,
+} from "@/components";
 import { useWebSocket } from "@/contexts";
 import { cn } from "@/lib/utils";
 import {
@@ -22,19 +28,28 @@ import {
 import { useState, useEffect } from "react";
 
 export const ScheduleWindow = () => {
-  const { sendMessage, isClientConnected, isControllerConnected } =
-    useWebSocket();
-  const isConnected = isClientConnected && isControllerConnected;
+  const { sendMessage, isClientConnected } = useWebSocket();
 
   const [schedules, setSchedules] = useState<Schedules>([
     {
       name: "Default Schedule",
       days: [],
       activePeriods: [],
-      startTimeSeconds: 0,
+      startTimeMinutes: 0,
       isActive: true,
     },
   ]);
+
+  useEffect(() => {
+    if (!isClientConnected) {
+      return;
+    }
+
+    if (schedules.length > 0) {
+      handleSetSchedule(schedules);
+    }
+  }, [schedules]);
+
   const [selectedScheduleIndex, setSelectedScheduleIndex] = useState<number>(0);
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
   const [editingName, setEditingName] = useState<string>("");
@@ -44,7 +59,7 @@ export const ScheduleWindow = () => {
   const isAtStart = selectedScheduleIndex === 0;
 
   const handleSetSchedule = (schedules: Schedules) => {
-    if (isConnected) {
+    if (isClientConnected) {
       sendMessage<SetSchedulePayload>({
         type: "setSchedule",
         payload: { schedules },
@@ -69,7 +84,7 @@ export const ScheduleWindow = () => {
       name: `Schedule ${schedules.length + 1}`,
       days: [],
       activePeriods: [],
-      startTimeSeconds: 0,
+      startTimeMinutes: 0,
       isActive: true,
     };
     const updatedSchedules = [...schedules, newSchedule];
@@ -177,6 +192,29 @@ export const ScheduleWindow = () => {
     );
   };
 
+  const getStartTimeDate = (): Date => {
+    if (!selectedSchedule) return new Date();
+    const minutes = selectedSchedule.startTimeMinutes;
+    const date = new Date();
+    date.setHours(0, minutes, 0, 0);
+    return date;
+  };
+
+  const handleUpdateStartTime = (newDate: Date | undefined) => {
+    if (!selectedSchedule || !newDate) return;
+
+    const hours = newDate.getHours();
+    const minutes = newDate.getMinutes();
+    const startTimeMinutes = hours * 60 + minutes;
+
+    const updatedSchedule = {
+      ...selectedSchedule,
+      startTimeMinutes,
+    };
+
+    handleUpdateSchedule(updatedSchedule);
+  };
+
   return (
     <div className="w-full flex-1 flex flex-col justify-center items-center gap-6">
       <div className="w-fit flex justify-between items-center gap-20">
@@ -216,10 +254,6 @@ export const ScheduleWindow = () => {
             </div>
           ) : (
             <>
-              <Switch
-                checked={selectedSchedule?.isActive}
-                onCheckedChange={handleUpdateActiveSchedule}
-              />
               <span className="text-lg font-semibold">
                 {selectedSchedule?.name || "No Schedule"}
               </span>
@@ -256,10 +290,34 @@ export const ScheduleWindow = () => {
           </button>
         )}
       </div>
-      <div className="w-fit flex flex-col justify-center items-center gap-6">
-        <span className="text-lg font-semibold w-full text-center">
+      <div className="flex flex-col justify-center items-center gap-6">
+        <div className="flex gap-16 items-center justify-between">
+          <div className="flex items-center gap-1">
+            <span className="text-md font-semibold">Active</span>
+            <Switch
+              checked={selectedSchedule?.isActive}
+              onCheckedChange={handleUpdateActiveSchedule}
+            />
+          </div>
+          <div className="flex items-center">
+            <span className="text-md font-semibold pr-1">Start Time</span>
+
+            <TimePickerInput
+              picker="hours"
+              date={getStartTimeDate()}
+              setDate={handleUpdateStartTime}
+            />
+            <span className="text-lg font-semibold">:</span>
+            <TimePickerInput
+              picker="minutes"
+              date={getStartTimeDate()}
+              setDate={handleUpdateStartTime}
+            />
+          </div>
+        </div>
+        {/* <span className="text-lg font-semibold w-full text-center">
           Run Times
-        </span>
+        </span> */}
         <div className="w-fit grid grid-cols-3 gap-4">
           <HourSelector
             zone={Zone.Zone1}
@@ -292,9 +350,9 @@ export const ScheduleWindow = () => {
             setActivePeriod={handleUpdateActivePeriod}
           />
         </div>
-        <span className="text-lg font-semibold w-full text-center">
+        {/* <span className="text-lg font-semibold w-full text-center">
           Run Days
-        </span>
+        </span> */}
         <DaySelector
           selectedDays={selectedSchedule?.days || []}
           setSelectedDays={handleUpdateSelectedDays}

@@ -3,3 +3,4 @@ export * from "./switch";
 export * from "./tabs";
 export * from "./context-menu";
 export * from "./input";
+export * from "./time-picker-input";

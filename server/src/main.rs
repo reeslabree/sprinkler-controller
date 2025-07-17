@@ -38,7 +38,6 @@ async fn main() {
         let controller_timestamp = controller_timestamp.clone();
         let config = config.clone();
         tokio::spawn(async move {
-            println!("Someone connected");
             let ws_stream = match accept_async(stream).await {
                 Ok(ws) => ws,
                 Err(_) => return,
@@ -120,10 +119,7 @@ async fn heartbeat_task(clients: ClientMap, controller_timestamp: ControllerTime
             }
         };
 
-        println!("is_controller_connected: {is_controller_connected}");
-
         if clients.lock().await.contains_key(&ClientType::User) {
-            println!("Sending heartbeat to user");
             handle_server_message(
                 &clients,
                 ClientType::User,
@@ -159,8 +155,6 @@ pub async fn handle_incoming_message(
                 }
             };
 
-            println!("User Message: {parsed_msg:?}");
-
             handle_user_message(&clients, &controller_timestamp, &config, parsed_msg).await;
         }
         ClientType::Controller => {
@@ -176,8 +170,6 @@ pub async fn handle_incoming_message(
                     return;
                 }
             };
-
-            println!("Controller Message: {parsed_msg:?}");
 
             handle_controller_message(clients, parsed_msg).await;
         }

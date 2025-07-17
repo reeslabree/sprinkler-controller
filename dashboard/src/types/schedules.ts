@@ -26,7 +26,7 @@ export interface Schedule {
   name: string;
   days: Day[];
   activePeriods: ActivePeriod[];
-  startTimeSeconds: number;
+  startTimeMinutes: number;
   isActive: boolean;
 }
 
