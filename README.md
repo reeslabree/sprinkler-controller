@@ -1,5 +1,8 @@
 ## Sprinkler Controller Suite
 
+![control window](https://raw.githubusercontent.com/reeslabree/sprinkler-controller/refs/heads/main/images/control-window.png)
+![schedule window](https://raw.githubusercontent.com/reeslabree/sprinkler-controller/refs/heads/main/images/schedule-window.png)
+
 This is my foray into embedded software development on the ESP32. I'm reaching a bit here, but my end goal is to be running bare metal Rust in a `no-std` environment on the ESP32-C6. I'll be hosting the websocket server and the dashboard on my Raspberry Pi, and the controller will be running in my garage.
 
 ### Architecture
