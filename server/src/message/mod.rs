@@ -63,7 +63,7 @@ pub async fn handle_user_message(
             )
             .await;
         }
-        UserMessage::Status(payload) => {
+        UserMessage::Status(_payload) => {
             let is_controller_connected = {
                 let timestamp_guard = controller_timestamp.lock().await;
                 if let Some(last_message) = *timestamp_guard {
@@ -125,9 +125,9 @@ pub async fn handle_user_message(
     }
 }
 
-pub async fn handle_controller_message(clients: &ClientMap, msg: ControllerMessage) {
+pub async fn handle_controller_message(_clients: &ClientMap, msg: ControllerMessage) {
     match msg {
-        ControllerMessage::KeepAlive(payload) => {}
+        ControllerMessage::KeepAlive(_payload) => {}
     }
 }
 

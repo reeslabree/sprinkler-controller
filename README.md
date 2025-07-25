@@ -2,6 +2,10 @@
 
 This is my foray into embedded software development on the ESP32. I'm reaching a bit here, but my end goal is to be running bare metal Rust in a `no-std` environment on the ESP32-C6. I'll be hosting the websocket server and the dashboard on my Raspberry Pi, and the controller will be running in my garage.
 
+### Architecture
+
+Both the web app and the websocket server are hosted on a Raspberry Pi. The controller runs on bare metal on the ESP32. The websocket server serves as a median between the client connections and the controller connections. Much of the scheduling logic will run on the websocket server and push commands to the controller to open and close zones.
+
 ### Components
 
 | Application  | Description                                                                                                                                                                                                                   |
