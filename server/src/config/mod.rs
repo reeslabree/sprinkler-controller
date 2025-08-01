@@ -1,6 +1,7 @@
 pub mod load;
 pub mod save;
 
+use crate::error::ServerError;
 use crate::types::Schedules;
 
 use core::default::Default;
@@ -28,12 +29,12 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn load() -> Result<Self, String> {
+    pub fn load() -> Result<Self, ServerError> {
         load()
     }
 
-    pub fn save(&self) -> Result<(), String> {
-        save(self).map_err(|e| e.to_string())
+    pub fn save(&self) -> Result<(), ServerError> {
+        save(self)
     }
 
     pub fn set_schedules(&mut self, schedules: Schedules) {

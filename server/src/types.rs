@@ -2,7 +2,7 @@ use crate::config::Config;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
@@ -38,6 +38,20 @@ pub enum Day {
     Friday,
     Saturday,
     Sunday,
+}
+
+impl From<chrono::Weekday> for Day {
+    fn from(weekday: chrono::Weekday) -> Self {
+        match weekday {
+            chrono::Weekday::Mon => Day::Monday,
+            chrono::Weekday::Tue => Day::Tuesday,
+            chrono::Weekday::Wed => Day::Wednesday,
+            chrono::Weekday::Thu => Day::Thursday,
+            chrono::Weekday::Fri => Day::Friday,
+            chrono::Weekday::Sat => Day::Saturday,
+            chrono::Weekday::Sun => Day::Sunday,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Hash, Copy)]

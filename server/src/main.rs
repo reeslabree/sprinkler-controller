@@ -1,15 +1,9 @@
 mod config;
+mod error;
 mod message;
+mod scheduler_runner;
 mod types;
 
-use crate::config::Config;
-use crate::message::server::ServerResponse;
-use crate::message::server::controller_heartbeat::ControllerHeartbeatPayload;
-use crate::message::user::UserMessage;
-use crate::message::{
-    handle_controller_message, handle_server_message, handle_user_message, send_to_client,
-};
-use crate::types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp};
 use futures_util::{SinkExt, StreamExt};
 use shared::ControllerMessage;
 use std::sync::Arc;
@@ -18,6 +12,16 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_tungstenite::accept_async;
+
+use crate::config::Config;
+use crate::message::server::ServerResponse;
+use crate::message::server::controller_heartbeat::ControllerHeartbeatPayload;
+use crate::message::user::UserMessage;
+use crate::message::{
+    handle_controller_message, handle_server_message, handle_user_message, send_to_client,
+};
+use crate::scheduler_runner::ScheduleRunner;
+use crate::types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp};
 
 #[tokio::main]
 async fn main() {

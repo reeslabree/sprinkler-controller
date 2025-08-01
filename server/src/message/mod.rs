@@ -94,7 +94,7 @@ pub async fn handle_user_message(
                 },
                 Err(e) => SetScheduleResponse {
                     success: false,
-                    error: Some(e),
+                    error: Some(e.to_string()),
                 },
             };
 
