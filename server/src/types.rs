@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::scheduler_runner::ScheduleRunner;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -12,6 +13,7 @@ use tokio_tungstenite::tungstenite;
 pub type ClientMap = Arc<Mutex<HashMap<ClientType, UnboundedSender<tungstenite::Message>>>>;
 pub type ControllerTimestamp = Arc<Mutex<Option<Instant>>>;
 pub type ConfigMutex = Arc<Mutex<Config>>;
+pub type ScheduleRunnerMutex = Arc<Mutex<ScheduleRunner>>;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub enum ClientType {
@@ -54,15 +56,21 @@ impl From<chrono::Weekday> for Day {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Hash, Copy)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Hash, Copy, Ord, PartialOrd)]
 #[serde(rename_all = "camelCase")]
 pub enum Zone {
-    Zone1,
-    Zone2,
-    Zone3,
-    Zone4,
-    Zone5,
-    Zone6,
+    Zone1 = 0,
+    Zone2 = 1,
+    Zone3 = 2,
+    Zone4 = 3,
+    Zone5 = 4,
+    Zone6 = 5,
+}
+
+impl From<Zone> for u8 {
+    fn from(zone: Zone) -> Self {
+        zone as u8
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]

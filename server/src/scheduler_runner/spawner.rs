@@ -1,5 +1,5 @@
 use crate::scheduler_runner::runner as schedule_runner;
-use crate::types::{Day, Schedule};
+use crate::types::{ClientMap, Day, Schedule};
 
 use chrono::{Datelike, Local, Timelike};
 use std::sync::Arc;
@@ -9,7 +9,11 @@ use std::time::Duration;
 
 const THREAD_POLL_MILLIS: u64 = 1000;
 
-pub(super) fn spawn(schedules: Vec<Schedule>) -> Vec<(Arc<AtomicBool>, thread::JoinHandle<()>)> {
+pub(super) fn spawn(
+    schedules: Vec<Schedule>,
+    stagger_zones: bool,
+    clients: &ClientMap,
+) -> Vec<(Arc<AtomicBool>, thread::JoinHandle<()>)> {
     schedules
         .iter()
         .map(|schedule| {
@@ -19,6 +23,8 @@ pub(super) fn spawn(schedules: Vec<Schedule>) -> Vec<(Arc<AtomicBool>, thread::J
             let schedule = schedule.clone();
             let start_time = schedule.start_time_minutes;
             let days = schedule.days.clone();
+
+            let clients = clients.clone();
 
             let handle = thread::spawn(move || {
                 loop {
@@ -32,7 +38,7 @@ pub(super) fn spawn(schedules: Vec<Schedule>) -> Vec<(Arc<AtomicBool>, thread::J
                     let current_time_minutes = now.hour() * 60 + now.minute();
 
                     if days.contains(&current_day) && current_time_minutes == start_time {
-                        let _ = schedule_runner::run(schedule.clone());
+                        let _ = schedule_runner::run(schedule.clone(), stagger_zones, &clients);
                     }
 
                     thread::sleep(Duration::from_millis(THREAD_POLL_MILLIS));

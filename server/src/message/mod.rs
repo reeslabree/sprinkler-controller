@@ -3,17 +3,13 @@ pub mod user;
 
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::{
-    message::{
-        server::ServerResponse,
-        user::{
-            UserMessage, UserMessageResponse, get_config::GetConfigResponse,
-            set_schedule::SetScheduleResponse, status::StatusResponse,
-            toggle_zone::ToggleZoneResponse,
-        },
-    },
-    types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp},
-};
+use crate::message::server::ServerResponse;
+use crate::message::user::get_config::GetConfigResponse;
+use crate::message::user::set_schedule::SetScheduleResponse;
+use crate::message::user::status::StatusResponse;
+use crate::message::user::toggle_zone::ToggleZoneResponse;
+use crate::message::user::{UserMessage, UserMessageResponse};
+use crate::types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp, ScheduleRunnerMutex};
 
 use shared::{ControllerMessage, ServerMessage, ToggleZonePayload};
 
@@ -30,10 +26,15 @@ pub async fn send_to_controller(clients: &ClientMap, message: &str) -> bool {
     send_to_client(clients, &ClientType::Controller, message).await
 }
 
+pub async fn send_to_user(clients: &ClientMap, message: &str) -> bool {
+    send_to_client(clients, &ClientType::User, message).await
+}
+
 pub async fn handle_user_message(
     clients: &ClientMap,
     controller_timestamp: &ControllerTimestamp,
     config: &ConfigMutex,
+    schedule_runner: &ScheduleRunnerMutex,
     msg: UserMessage,
 ) {
     println!("User Message: {msg:?}");
@@ -50,9 +51,8 @@ pub async fn handle_user_message(
             )
             .await;
 
-            send_to_client(
+            send_to_user(
                 clients,
-                &ClientType::User,
                 &serde_json::to_string(&UserMessageResponse::ToggleZoneResponse(
                     ToggleZoneResponse {
                         success: true,
@@ -73,9 +73,8 @@ pub async fn handle_user_message(
                 }
             };
 
-            send_to_client(
+            send_to_user(
                 clients,
-                &ClientType::User,
                 &serde_json::to_string(&UserMessageResponse::StatusResponse(StatusResponse {
                     is_controller_connected,
                 }))
@@ -89,7 +88,11 @@ pub async fn handle_user_message(
             config_guard.set_schedules(payload.schedules);
             let response = match config_guard.save() {
                 Ok(_) => SetScheduleResponse {
-                    success: true,
+                    success: {
+                        let mut schedule_runner_guard = schedule_runner.lock().await;
+                        schedule_runner_guard.update(config_guard.clone(), clients);
+                        true
+                    },
                     error: None,
                 },
                 Err(e) => SetScheduleResponse {
@@ -98,9 +101,8 @@ pub async fn handle_user_message(
                 },
             };
 
-            send_to_client(
+            send_to_user(
                 clients,
-                &ClientType::User,
                 &serde_json::to_string(&UserMessageResponse::SetScheduleResponse(response))
                     .unwrap(),
             )
@@ -115,9 +117,8 @@ pub async fn handle_user_message(
                 stagger_zones: config.stagger_zones,
             };
 
-            send_to_client(
+            send_to_user(
                 clients,
-                &ClientType::User,
                 &serde_json::to_string(&UserMessageResponse::GetConfigResponse(response)).unwrap(),
             )
             .await;

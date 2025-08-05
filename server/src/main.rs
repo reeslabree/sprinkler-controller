@@ -21,7 +21,7 @@ use crate::message::{
     handle_controller_message, handle_server_message, handle_user_message, send_to_client,
 };
 use crate::scheduler_runner::ScheduleRunner;
-use crate::types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp};
+use crate::types::{ClientMap, ClientType, ConfigMutex, ControllerTimestamp, ScheduleRunnerMutex};
 
 #[tokio::main]
 async fn main() {
@@ -29,6 +29,10 @@ async fn main() {
     let clients: ClientMap = types::ClientMap::default();
     let controller_timestamp: ControllerTimestamp = Arc::new(Mutex::new(None));
     let config: ConfigMutex = Arc::new(Mutex::new(Config::load().unwrap()));
+    let schedule_runner: ScheduleRunnerMutex = Arc::new(Mutex::new(ScheduleRunner::new(
+        config.lock().await.clone(),
+        &clients,
+    )));
 
     // Spawn heartbeat task
     let heartbeat_clients = clients.clone();
@@ -41,6 +45,8 @@ async fn main() {
         let clients = clients.clone();
         let controller_timestamp = controller_timestamp.clone();
         let config = config.clone();
+        let schedule_runner = schedule_runner.clone();
+
         tokio::spawn(async move {
             let ws_stream = match accept_async(stream).await {
                 Ok(ws) => ws,
@@ -92,6 +98,7 @@ async fn main() {
                         client_type,
                         text,
                         &config,
+                        &schedule_runner,
                     )
                     .await;
                 }
@@ -142,6 +149,7 @@ pub async fn handle_incoming_message(
     client_type: ClientType,
     text: &str,
     config: &ConfigMutex,
+    schedule_runner: &ScheduleRunnerMutex,
 ) {
     match client_type {
         ClientType::User => {
@@ -159,7 +167,14 @@ pub async fn handle_incoming_message(
                 }
             };
 
-            handle_user_message(&clients, &controller_timestamp, &config, parsed_msg).await;
+            handle_user_message(
+                &clients,
+                &controller_timestamp,
+                &config,
+                &schedule_runner,
+                parsed_msg,
+            )
+            .await;
         }
         ClientType::Controller => {
             {
